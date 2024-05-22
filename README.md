@@ -1,22 +1,20 @@
 # Epic Fight Animation & Model exporter
+This is my Blender `>2.8` fork of the Epic Fight Mod Blender export add-on originally written by [Yesman](https://github.com/Yesssssman).     
+Blender `2.79` and below used python2 syntax. From `2.8` onwards they moved to python3 and had some changes in the API.      
+Tested on Blender `2.8`, `3.6` and `4.0`.   
+Should not have any issues on future versions unless the Blender API changes drastically or python4 is released.  
+It will ignore exporting IK bones to prevent errors, so best to bake your animation and play it before you export it.
 
-This plugin is specially created for Minecraft - Epic Fight development, in blender 2.79 version.
+## Installation
+1. Download the release.
+2. Import it to Blender through Edit > Preferences > Add-ons > Install... > Select the .zip file
+3. Make sure the add-on is enabled.
+4. File > Export > menu should now contain `Animated Minecraft Model(.json)`
 
-## Applying to your blender
-
-1. Download the whole source code.
-2. Go to the folder where blender is installed, move all files under /2.79/scripts/addons/io_export_mc_json/. (Last folder name is example)
-3. Go to the Blender > File > User Preferences > Add-ons, And find the add-on named "Import-Export: Minecraft Model Json Exporter"
-4. Check to the checkbox and save user settings
-5. Now you can see the exporter named "Animated Minecraft Model" is activated!
-
-## About the bug and supports
-
-Since this exporter is designed for a very restricted purpose, I won't provide any support. The mesh, armature, and animation data must be created first to export the model properly.
+## Support
+I'm in the [EFM discord server](https://discord.com/invite/NbAJwj8RHg) > Epic Fight Animation files thread is pinned in the #forums channel. Do not ask metal or Yesman for support for this version of the script. 
 
 ## Changelog
-
-1.0.2: Added the part ditingushing function by the vertex group it will store all vectices in the vertex group which is the name ends with "_mesh"
-1.0.1: Separated the option "export model" to "export mesh" and "export armature". This is because the armature data is useless to armors.
-	Changed the hidden joints not to be exported
-1.0.0: Created
+1.2: Fixed UV caused deformed mapping on the torso   
+1.1: Armature and mesh exports will now be unchecked by default. Rewrite of export_mesh() to fix an error while exporting mesh.     
+1.0: Ported python2 syntax to python3  

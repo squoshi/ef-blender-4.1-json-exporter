@@ -2,69 +2,82 @@ from collections import OrderedDict
 from _ctypes import PyObj_FromPtr
 import json
 import re
-
+ 
 import bpy
-
+ 
 class NoIndent(object):
     def __init__(self, value):
         self.value = value
-
+ 
 class NoIndentEncoder(json.JSONEncoder):
     FORMAT_SPEC = '@@{}@@'
     regex = re.compile(FORMAT_SPEC.format(r'(\d+)'))
-
+ 
     def __init__(self, **kwargs):
         self.__sort_keys = kwargs.get('sort_keys', None)
         super(NoIndentEncoder, self).__init__(**kwargs)
-
+ 
     def default(self, obj):
         return (self.FORMAT_SPEC.format(id(obj)) if isinstance(obj, NoIndent) else super(NoIndentEncoder, self).default(obj))
-
+ 
     def encode(self, obj):
         format_spec = self.FORMAT_SPEC
         json_repr = super(NoIndentEncoder, self).encode(obj)
-
+ 
         for match in self.regex.finditer(json_repr):
             id = int(match.group(1))
             no_indent = PyObj_FromPtr(id)
             json_obj_repr = json.dumps(no_indent.value, sort_keys=self.__sort_keys)
             json_repr = json_repr.replace('"{}"'.format(format_spec.format(id)), json_obj_repr)
         return json_repr
-
+ 
 def ensure_extension( filepath, extension ):
+    '''Enforces the extension if input filename does not end with given ext'''
     if not filepath.lower().endswith( extension ):
         filepath += extension
     return filepath
-
+ 
 def mesh_triangulate(me):
+    '''Converts Bmesh faces into triangles'''
     import bmesh
     bm = bmesh.new()
     bm.from_mesh(me)
     bmesh.ops.triangulate(bm, faces=bm.faces)
     bm.to_mesh(me)
     bm.free()
-
+ 
 def veckey2d(v):
+    '''Generates a tuple pair given a 2D vector. Rounded to 4f'''
     return round(v.x, 4), round(v.y, 4)
-
+ 
 def veckey3d(v):
     return round(v.x, 4), round(v.y, 4), round(v.z, 4)
-
+ 
 def wrap_matrix(mat):
+    '''Given a 4x4 matrix, returns a 1D list rounded to 6f'''
     return NoIndent([round(e, 6) for v in mat for e in v])
-
+ 
 def create_array_dict(stride, count, array):
+    '''Generates the array for stride, count, array'''
     ordered_dict = OrderedDict()
     ordered_dict['stride'] = stride
     ordered_dict['count'] = count
     ordered_dict['array'] = NoIndent(array)
     return ordered_dict
-
+ 
 def export_mesh(obj, bones):
-    obj_mesh = obj.to_mesh(bpy.context.scene, False, calc_tessface=False, settings='PREVIEW')
+    '''Export the rig mesh'''
+    # Check if UV layers exist
+    if not obj.data.uv_layers:
+        print("No UV layers found.")
+        return
+    
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    obj_eval = obj.evaluated_get(depsgraph)
+    obj_mesh = obj_eval.to_mesh()
     mesh_triangulate(obj_mesh)
     obj_mesh.calc_normals_split()
-    
+
     # export vertex data
     position_array = [round(f, 6) for v in obj_mesh.vertices for f in v.co[:]]
     uv_array = []
@@ -88,16 +101,15 @@ def export_mesh(obj, bones):
                 no_unique_count += 1
             loops_to_normals[l_idx] = no_val
     del normals_to_idx, no_get, no_key, no_val
-    
+
     # export uv data
     uv_layer = obj_mesh.uv_layers.active.data[:]
-    uv = f_index = uv_index = uv_key = uv_val = uv_ls = None
     uv_face_mapping = [None] * len(obj_mesh.polygons)
     uv_dict = {}
     uv_get = uv_dict.get
     for f_index, f in enumerate(obj_mesh.polygons):
         uv_ls = uv_face_mapping[f_index] = []
-        for uv_index, l_index in enumerate(f.loop_indices):
+        for l_index in f.loop_indices:
             uv = uv_layer[l_index].uv
             uv_key = veckey2d(uv)
             uv_val = uv_get(uv_key)
@@ -107,8 +119,8 @@ def export_mesh(obj, bones):
                     uv_array.append(round(uv_cor if i % 2 == 0 else 1-uv_cor, 6))
                 uv_unique_count += 1
             uv_ls.append(uv_val)
-    del uv_dict, uv, f_index, uv_index, uv_ls, uv_get, uv_key, uv_val
-    
+    del uv_dict, uv, f_index, l_index, uv_ls, uv_get, uv_key, uv_val
+
     parts = {'noGroups': []}
     
     for vg in obj.vertex_groups:
@@ -130,12 +142,12 @@ def export_mesh(obj, bones):
             parts[mesh_vgs].append(v.index)
             parts[mesh_vgs].append(uv_face_mapping[f_index][vi])
             parts[mesh_vgs].append(loops_to_normals[li])
-    
+
     output = OrderedDict()
     output['positions'] = create_array_dict(3, len(position_array) // 3, position_array)
     output['uvs'] = create_array_dict(2, len(uv_array) // 2, uv_array)
     output['normals'] = create_array_dict(3, len(normal_array) // 3, normal_array)
-    
+
     # export skin weight data
     if bones is not None:
         vcounts = []
@@ -173,26 +185,29 @@ def export_mesh(obj, bones):
         output['vcounts'] = create_array_dict(1, len(vcounts), vcounts)
         output['weights'] = create_array_dict(1, len(weights), weights)
         output['vindices'] = create_array_dict(1, len(vindices), vindices)
-    
+
     output['parts'] = {}
     
     for k, v in parts.items():
         if len(v) > 0:
             output['parts'][k] = create_array_dict(3, len(v) // 3, v)
-    
+
     return output
 
+
+ 
 def export_armature(obj):
     def export_bones(b, list, dict):
-        list.append(b.name)
-        
-        matrix = b.matrix_local
-        if (b.parent is not None):
-            matrix = b.parent.matrix_local.inverted_safe() * matrix
-        
-        dict['name'] = b.name
-        dict['transform'] = wrap_matrix(matrix)
-        dict['children'] = [export_bones(child, list, OrderedDict()) for child in b.children]
+        if b.use_deform:  # Only export the bone if it's a deform bone  # used to exclude IK 
+            list.append(b.name)
+
+            matrix = b.matrix_local
+            if b.parent is not None:
+                matrix = b.parent.matrix_local.inverted_safe() @ matrix
+
+            dict['name'] = b.name
+            dict['transform'] = wrap_matrix(matrix)
+            dict['children'] = [export_bones(child, list, OrderedDict()) for child in b.children if child.use_deform]
         return dict
     
     output = OrderedDict()
@@ -201,9 +216,9 @@ def export_armature(obj):
     bone_hierarchy = []
     
     for b in obj.data.bones:
-        if (b.parent is not None):
+        if b.parent is not None:
             continue
-        if (b.hide):
+        if b.hide:
             continue
         b_dic = export_bones(b, bones, OrderedDict())
         bone_hierarchy.append(b_dic)
@@ -213,6 +228,7 @@ def export_armature(obj):
     
     return output
 
+ 
 def export_animation(obj, bone_name_list):
     scene = bpy.context.scene
     action = obj.animation_data.action
@@ -220,35 +236,35 @@ def export_animation(obj, bone_name_list):
     dope_sheet = {}
     timelines = []
     output = []
-    
+
     if action is not None:
         for curve in action.fcurves:
             keyframePoints = curve.keyframe_points
             name = curve.group.name
             if name not in dope_sheet:
-                dope_sheet[name] = {'transform':[], 'timestamp':[]}
+                dope_sheet[name] = {'transform': [], 'timestamp': []}
             for keyframe in keyframePoints:
                 val = int(keyframe.co[0])
-                if val not in dope_sheet[(name)]['timestamp']:
-                    dope_sheet[(name)]['timestamp'].append(val)
+                if val not in dope_sheet[name]['timestamp']:
+                    dope_sheet[name]['timestamp'].append(val)
                 if val not in timelines:
                     timelines.append(val)
         timelines.sort()
-        
+
         for t in timelines:
             scene.frame_set(t)
             for b in bones:
                 if b.name not in dope_sheet:
-                    dope_sheet[b.name] = {'transform':[], 'timestamp':[]}
+                    dope_sheet[b.name] = {'transform': [], 'timestamp': []}
                 if t in dope_sheet[b.name]['timestamp'] or t == 0 or t == timelines[-1]:
                     matrix = obj.pose.bones[b.name].matrix.copy()
-                    if (b.parent is not None):
+                    if b.parent is not None:
                         parent_pose_invert = obj.pose.bones[b.parent.name].matrix.inverted_safe()
-                        matrix = parent_pose_invert * matrix
+                        matrix = parent_pose_invert @ matrix
                     if t not in dope_sheet[b.name]['timestamp']:
                         dope_sheet[b.name]['timestamp'].append(t)
                     dope_sheet[b.name]['transform'].append(wrap_matrix(matrix))
-        
+
         for b in bone_name_list:
             dict = OrderedDict()
             dict['name'] = b
@@ -258,14 +274,27 @@ def export_animation(obj, bone_name_list):
 
     return output
 
+ 
 def save(context, **kwargs):
-    file_path = ensure_extension( kwargs['filepath'], ".json")
+    file_path = ensure_extension(kwargs['filepath'], ".json")
     output = OrderedDict()
     mesh_obj = armature_obj = mesh_result = armature_result = animation_result = None
-    
-    export_msh = kwargs['export_mesh']
-    export_armat = kwargs['export_armature']
-    export_anim = kwargs['export_anim']
+ 
+    # Handling Blender 2.79 and Blender 2.8+ key names
+    export_msh = kwargs.get('export_mesh', kwargs.get('mesh', False))
+    export_armat = kwargs.get('export_armature', kwargs.get('armature', False))
+    export_anim = kwargs.get('export_anim', kwargs.get('animation', False))
+ 
+    # Default values in case the keys are not present in kwargs
+    if 'export_mesh' not in kwargs and 'mesh' not in kwargs:
+        export_msh = True
+    if 'export_armature' not in kwargs and 'armature' not in kwargs:
+        export_armat = True
+    if 'export_anim' not in kwargs and 'animation' not in kwargs:
+        export_anim = True
+ 
+    print("Keywords:", kwargs)
+
     
     for obj in context.scene.objects:
         if obj.type == 'MESH':
