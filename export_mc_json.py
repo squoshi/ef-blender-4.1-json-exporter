@@ -76,7 +76,10 @@ def export_mesh(obj, bones):
     obj_eval = obj.evaluated_get(depsgraph)
     obj_mesh = obj_eval.to_mesh()
     mesh_triangulate(obj_mesh)
-    obj_mesh.calc_normals_split()
+    # Automatically handled in >=4.1.x
+    if bpy.app.version < (4, 1, 0):
+        obj_mesh.calc_normals_split()
+    
 
     # export vertex data
     position_array = [round(f, 6) for v in obj_mesh.vertices for f in v.co[:]]
