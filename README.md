@@ -15,7 +15,7 @@ It will ignore exporting IK bones to prevent errors, so best to bake your animat
 I'm in the [EFM discord server](https://discord.com/invite/NbAJwj8RHg) > Epic Fight Animation files thread is pinned in the #forums channel. Do not ask metal or Yesman for support for this version of the script. 
 
 ## Changelog
-1.3: Added check for blender version to determine if calculating normals is needed (handled automatically in Blender 4.1.x)
+1.3: Added check for blender version to determine if calculating normals is needed (handled automatically in Blender 4.1.x)  
 1.2: Fixed UV caused deformed mapping on the torso   
 1.1: Armature and mesh exports will now be unchecked by default. Rewrite of export_mesh() to fix an error while exporting mesh.     
 1.0: Ported python2 syntax to python3  
