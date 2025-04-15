@@ -20,27 +20,45 @@ class ExportToJson(bpy.types.Operator, ExportHelper):
     bl_options = {'PRESET'}
 
     @classmethod
-    def poll(cls, context):
-        return context.active_object is not None
+    def poll( cls, csaontext ):
+        return context.active_object != None
 
     export_anim : BoolProperty(
         name="Export Animation",
         description="Export animation data",
-        default=True,
+        default=True
     )
 
     export_mesh : BoolProperty(
         name="Export Mesh",
         description="Export mesh data",
-        default=False,
+        default=True
     )
 
     export_armature : BoolProperty(
         name="Export Armature",
         description="Export armature data",
-        default=False,
+        default=True
     )
-
+    
+    export_camera : BoolProperty(
+        name="Export Camera",
+        description="Export camera transform",
+        default=False
+    )
+    
+    transform_formats = [
+        ('MAT', 'Matrix', "Export transform as matrix"),
+        ('ATTR', 'Attributes', "Export transform as loc, rot, scale attributers")
+    ]
+    
+    animation_format : EnumProperty(
+        name="Format",
+        description="Animation transform export format",
+        default='ATTR',
+        items=transform_formats
+    )
+    
     def execute(self, context):
         if not self.filepath:
             raise Exception("Filepath not set")
