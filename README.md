@@ -6,7 +6,7 @@ Should not have any issues on future versions unless the Blender API changes dra
 It will ignore exporting IK bones to prevent errors, so best to bake your animation and play it before you export it.
 
 ## Installation
-1. Download the release.
+1. Download the zip from the green "Code" button at the top of this repository.
 2. Extract the zip and rename the folder to `blender-json-exporter`
 3. Copy and paste the folder to the Blender addons directory.
 4. Make sure the add-on is enabled.
