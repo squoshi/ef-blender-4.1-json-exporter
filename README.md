@@ -7,15 +7,16 @@ It will ignore exporting IK bones to prevent errors, so best to bake your animat
 
 ## Installation
 1. Download the release.
-2. Import it to Blender through Edit > Preferences > Add-ons > Install... > Select the .zip file
-3. Make sure the add-on is enabled.
-4. File > Export > menu should now contain `Animated Minecraft Model(.json)`
+2. Extract the zip and rename the folder to `blender-json-exporter`
+3. Copy and paste the folder to the Blender addons directory.
+4. Make sure the add-on is enabled.
+5. File > Export > menu should now contain `Animated Minecraft Model(.json)`
 
 ## Support
 I'm in the [EFM discord server](https://discord.com/invite/NbAJwj8RHg) > Epic Fight Animation files thread is pinned in the #forums channel. Do not ask metal or Yesman for support for this version of the script. 
 
 ## Changelog
-1.4: Updated scripts to work with POV animations
+1.4: Updated scripts to work with POV animations     
 1.3: Added check for blender version to determine if calculating normals is needed (handled automatically in Blender 4.1.x)  
 1.2: Fixed UV caused deformed mapping on the torso   
 1.1: Armature and mesh exports will now be unchecked by default. Rewrite of export_mesh() to fix an error while exporting mesh.     
