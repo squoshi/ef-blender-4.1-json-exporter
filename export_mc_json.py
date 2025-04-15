@@ -70,20 +70,19 @@ def export_mesh(obj, bones):
     if not obj.data.uv_layers:
         print("No UV layers found.")
         return
-    depsgraph = bpy.context.evaluated_depsgraph_get()
-    obj_eval = obj.evaluated_get(depsgraph)
-    obj_mesh = obj_eval.to_mesh()
+    obj_mesh = obj.to_mesh(bpy.context.scene, False, calc_tessface=False, settings='PREVIEW')
     triangulated_mesh = bpy.data.meshes.new('triangulated_mesh')
     mesh_triangulate(obj_mesh, triangulated_mesh)
     if bpy.app.version < (4, 1, 0):
         obj_mesh.calc_normals_split()
+    
     owner_polygons = {}
     
     for f in triangulated_mesh.polygons:
         owners = [p for p in obj_mesh.polygons if all(x in [v for v in p.vertices] for x in [v for v in f.vertices])]
         
         if len(owners) != 1:
-            raise Exception('triangulation error')
+            raise Exception('triangulation error');
         
         owner_polygons[f] = owners[0]
     
@@ -117,7 +116,7 @@ def export_mesh(obj, bones):
             loops_to_normals[l_idx] = no_val
     
     del normals_to_idx, no_get, no_key, no_val
-
+    
     # export uv data
     uv_layer = triangulated_mesh.uv_layers.active.data[:]
     uv = f_index = uv_index = uv_key = uv_val = uv_ls = None
@@ -188,7 +187,7 @@ def export_mesh(obj, bones):
     output['positions'] = create_array_dict(3, len(position_array) // 3, position_array)
     output['uvs'] = create_array_dict(2, len(uv_array) // 2, uv_array)
     output['normals'] = create_array_dict(3, len(normal_array) // 3, normal_array)
-
+    
     # export skin weight data
     if bones is not None:
         vcounts = []
@@ -231,16 +230,15 @@ def export_mesh(obj, bones):
         output['vcounts'] = create_array_dict(1, len(vcounts), vcounts)
         output['weights'] = create_array_dict(1, len(weights), weights)
         output['vindices'] = create_array_dict(1, len(vindices), vindices)
-
+    
     output['parts'] = {}
     
     for k, v in parts.items():
         if len(v) > 0:
             output['parts'][k] = create_array_dict(3, len(v) // 3, v)
-
-    obj_eval.to_mesh_clear()
+    
     return output
- 
+
 def export_armature(obj):
     def export_bones(b, list, dict):
         if b.use_deform:  # Only export the bone if it's a deform bone  # used to exclude IK 
