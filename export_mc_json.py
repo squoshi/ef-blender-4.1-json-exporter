@@ -350,7 +350,8 @@ def export_camera(camera_obj):
     action = camera_obj.animation_data.action
     transform = []
     timestamp = []
-    
+    output = OrderedDict()
+
     if action is not None:
         kf_names = set([fcurve.group.name for fcurve in action.fcurves])
         
@@ -381,10 +382,9 @@ def export_camera(camera_obj):
             transformdict['sca'] = NoIndent([round(v, 6) for v in sca])
             transform.append(transformdict)
         
-        output = OrderedDict()
         output['time'] = NoIndent([round(t / (bpy.context.scene.render.fps), 4) for t in timestamp])
         output['transform'] = transform
-    
+
     return output
 
 # Correct the bone priority matching with vertex group's order
