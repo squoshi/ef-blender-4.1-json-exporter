@@ -21,7 +21,7 @@ class ExportToJson(bpy.types.Operator, ExportHelper):
 
     @classmethod
     def poll( cls, csaontext ):
-        return context.active_object != None
+        return csaontext.active_object != None
 
     export_anim : BoolProperty(
         name="Export Animation",

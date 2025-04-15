@@ -350,8 +350,7 @@ def export_camera(camera_obj):
     action = camera_obj.animation_data.action
     transform = []
     timestamp = []
-    output = OrderedDict()
-
+    
     if action is not None:
         kf_names = set([fcurve.group.name for fcurve in action.fcurves])
         
@@ -372,8 +371,9 @@ def export_camera(camera_obj):
         
         for t in timestamp:
             scene.frame_set(t)
-            world_mat = mathutils.Matrix.Translation(mathutils.Vector((0.0, 0.0, -1.62))) * camera_obj.matrix_world
-            world_mat = mathutils.Matrix.Rotation(math.radians(-90.0), 4, 'X') * world_mat
+            print("matrix world: ", camera_obj.matrix_world)
+            world_mat = mathutils.Matrix.Translation(mathutils.Vector((0.0, 0.0, -1.62))) @ camera_obj.matrix_world
+            world_mat = mathutils.Matrix.Rotation(math.radians(-90.0), 4, 'X') @ world_mat
             
             loc, rot, sca = world_mat.decompose()
             transformdict = OrderedDict()
@@ -382,9 +382,10 @@ def export_camera(camera_obj):
             transformdict['sca'] = NoIndent([round(v, 6) for v in sca])
             transform.append(transformdict)
         
+        output = OrderedDict()
         output['time'] = NoIndent([round(t / (bpy.context.scene.render.fps), 4) for t in timestamp])
         output['transform'] = transform
-
+    
     return output
 
 # Correct the bone priority matching with vertex group's order
