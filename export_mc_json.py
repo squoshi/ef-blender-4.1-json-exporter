@@ -70,7 +70,7 @@ def export_mesh(obj, bones):
     if not obj.data.uv_layers:
         print("No UV layers found.")
         return
-    obj_mesh = obj.to_mesh(bpy.context.scene, False, calc_tessface=False, settings='PREVIEW')
+    obj_mesh = obj.to_mesh(preserve_all_data_layers=True)
     triangulated_mesh = bpy.data.meshes.new('triangulated_mesh')
     mesh_triangulate(obj_mesh, triangulated_mesh)
     if bpy.app.version < (4, 1, 0):
@@ -311,11 +311,11 @@ def export_animation(obj, bone_name_list, animation_format):
                     
                     if animation_format == 'ATTR':
                         if b.parent is not None:
-                            bone_local = b.parent.matrix_local.inverted_safe() * bone_local
+                            bone_local = b.parent.matrix_local.inverted_safe() @ bone_local
                             parent_pose_invert = obj.pose.bones[b.parent.name].matrix.inverted_safe()
-                            matrix = bone_local.inverted_safe() * parent_pose_invert * matrix
+                            matrix = bone_local.inverted_safe() @ parent_pose_invert @ matrix
                         else:
-                            matrix = bone_local.inverted_safe() * matrix
+                            matrix = bone_local.inverted_safe() @ matrix
                         
                         if t not in dope_sheet[b.name]['timestamp']:
                             dope_sheet[b.name]['timestamp'].append(t)
@@ -329,7 +329,7 @@ def export_animation(obj, bone_name_list, animation_format):
                     else:
                         if (b.parent is not None):
                             parent_pose_invert = obj.pose.bones[b.parent.name].matrix.inverted_safe()
-                            matrix = parent_pose_invert * matrix
+                            matrix = parent_pose_invert @ matrix
                         
                         if t not in dope_sheet[b.name]['timestamp']:
                             dope_sheet[b.name]['timestamp'].append(t)
@@ -371,11 +371,18 @@ def export_camera(camera_obj):
         
         for t in timestamp:
             scene.frame_set(t)
-            print("matrix world: ", camera_obj.matrix_world)
             world_mat = mathutils.Matrix.Translation(mathutils.Vector((0.0, 0.0, -1.62))) @ camera_obj.matrix_world
-            world_mat = mathutils.Matrix.Rotation(math.radians(-90.0), 4, 'X') @ world_mat
             
             loc, rot, sca = world_mat.decompose()
+            blender_to_minecraft_coord = mathutils.Quaternion((1.0, 0.0, 0.0), math.radians(-90.0))
+            
+            loc.rotate(blender_to_minecraft_coord)
+            rot.rotate(blender_to_minecraft_coord)
+            
+            euler = rot.to_euler('XYZ')
+            print(t, rot)
+            print(t, euler[0] * (180 / 3.1415), euler[1] * (180 / 3.1415), euler[2] * (180 / 3.1415))
+            
             transformdict = OrderedDict()
             transformdict['loc'] = NoIndent([round(v, 6) for v in loc])
             transformdict['rot'] = NoIndent([round(v, 6) for v in rot])
